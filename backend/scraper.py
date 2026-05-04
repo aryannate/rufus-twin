@@ -2,7 +2,6 @@ import httpx
 import logging
 from bs4 import BeautifulSoup
 from models import ProductData
-import config
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +15,13 @@ def sanitize_url(url: str) -> str:
     return url
 
 
-async def scrape_product(url: str) -> ProductData:
+async def scrape_product(url: str, scraperapi_key: str) -> ProductData:
     try:
         clean_url = sanitize_url(url)
-        # Only log the Amazon URL, never the ScraperAPI URL with key
         logger.info(f"Scraping: {clean_url}")
         api_url = (
             f"https://api.scraperapi.com"
-            f"?api_key={config.SCRAPERAPI_KEY}"
+            f"?api_key={scraperapi_key}"
             f"&url={clean_url}"
             f"&render=true"
             f"&country_code=us"

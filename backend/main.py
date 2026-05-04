@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Rufus Twin API", version="1.0.0")
 
-# In production, replace * with your Vercel domain:
-# allow_origins=["https://rufus-twin.vercel.app"]
+# In production, replace * with your Vercel frontend domain:
+# allow_origins=["https://rufus-twin-32ql.vercel.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +28,6 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-# ── Rate limiting ────────────────────────────────────────────────────────────
 _rate_store: dict = defaultdict(list)
 RATE_LIMIT = 10
 RATE_WINDOW = 3600
@@ -42,7 +41,6 @@ def check_rate_limit(ip: str):
     _rate_store[ip].append(now)
 
 
-# ── Exception handler ────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=True)
@@ -58,10 +56,11 @@ async def health():
 async def analyze(req: AnalyzeRequest, request: Request):
     check_rate_limit(request.client.host)
 
+    keys = req.api_keys
     scrape_warning = None
     all_urls = [req.main_url] + req.competitor_urls
 
-    scraped = await asyncio.gather(*[scrape_product(url) for url in all_urls])
+    scraped = await asyncio.gather(*[scrape_product(url, keys.scraperapi_key) for url in all_urls])
 
     main_product = scraped[0]
     if main_product.scrape_failed:
@@ -88,8 +87,8 @@ async def analyze(req: AnalyzeRequest, request: Request):
         raise HTTPException(status_code=422, detail="No products could be processed.")
 
     embedded_all, query_vector = await asyncio.gather(
-        asyncio.gather(*[chunk_and_embed(p) for p in products]),
-        embed_query(req.shopper_query),
+        asyncio.gather(*[chunk_and_embed(p, keys.openai_api_key) for p in products]),
+        embed_query(req.shopper_query, keys.openai_api_key),
     )
 
     store = VectorStore()
@@ -100,15 +99,15 @@ async def analyze(req: AnalyzeRequest, request: Request):
     main_context = all_contexts[0]
 
     simulation_result, score_result, fixes_result = await asyncio.gather(
-        simulate_rufus(all_contexts, req.shopper_query, products),
-        score_listing(main_context, req.shopper_query, products[0]),
-        generate_fixes(products[0], req.shopper_query),
+        simulate_rufus(all_contexts, req.shopper_query, products, keys.anthropic_api_key),
+        score_listing(main_context, req.shopper_query, products[0], keys.anthropic_api_key),
+        generate_fixes(products[0], req.shopper_query, keys.anthropic_api_key),
     )
 
     competitor_scores = []
     if len(products) > 1:
         comp_score_tasks = [
-            score_listing(all_contexts[i], req.shopper_query, products[i])
+            score_listing(all_contexts[i], req.shopper_query, products[i], keys.anthropic_api_key)
             for i in range(1, len(products))
         ]
         comp_scores = await asyncio.gather(*comp_score_tasks)

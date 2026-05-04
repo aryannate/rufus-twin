@@ -2,7 +2,21 @@ from pydantic import BaseModel, field_validator
 from typing import List, Optional
 
 
+class ApiKeys(BaseModel):
+    scraperapi_key: str
+    openai_api_key: str
+    anthropic_api_key: str
+
+    @field_validator("scraperapi_key", "openai_api_key", "anthropic_api_key")
+    @classmethod
+    def key_not_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError("API key must not be empty")
+        return v.strip()
+
+
 class AnalyzeRequest(BaseModel):
+    api_keys: ApiKeys
     main_url: str
     competitor_urls: List[str] = []
     shopper_query: str

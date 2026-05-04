@@ -1,4 +1,5 @@
 import { useState } from "react"
+import ApiKeysForm from "./components/ApiKeysForm"
 import InputForm from "./components/InputForm"
 import SimulationPanel from "./components/SimulationPanel"
 import ScoreCard from "./components/ScoreCard"
@@ -9,9 +10,12 @@ import LoadingState from "./components/LoadingState"
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000"
 
 export default function App() {
+  const [apiKeys, setApiKeys] = useState({ scraperapi_key: "", openai_api_key: "", anthropic_api_key: "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState(null)
+
+  const keysReady = apiKeys.scraperapi_key && apiKeys.openai_api_key && apiKeys.anthropic_api_key
 
   const handleAnalyze = async (formData) => {
     setLoading(true)
@@ -21,7 +25,14 @@ export default function App() {
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          api_keys: {
+            scraperapi_key: apiKeys.scraperapi_key,
+            openai_api_key: apiKeys.openai_api_key,
+            anthropic_api_key: apiKeys.anthropic_api_key,
+          },
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || "Analysis failed")
@@ -41,7 +52,9 @@ export default function App() {
         <p style={{ color: "var(--muted)", fontSize: 15 }}>Simulate how Amazon's AI shopping assistant responds to shoppers asking about your product — and exactly what to fix.</p>
       </header>
 
-      <InputForm onSubmit={handleAnalyze} loading={loading} />
+      <ApiKeysForm onKeysChange={setApiKeys} />
+
+      <InputForm onSubmit={handleAnalyze} loading={loading} keysReady={keysReady} />
 
       {error && (
         <div style={{ background: "#1A0A0A", border: "1px solid var(--red)", borderRadius: 8, padding: "16px 20px", color: "var(--red)", marginTop: 24, fontSize: 14 }}>
