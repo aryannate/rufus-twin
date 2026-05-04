@@ -49,4 +49,4 @@ docker-compose up --build
 - Frontend: Vercel (connect GitHub repo, set root to /frontend, set VITE_API_URL)
 
 ## Built By
-Aryan Natekar — Autonova AI LLP
+Aryan Nate — A project for Pixii

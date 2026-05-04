@@ -68,7 +68,7 @@ export default function App() {
       )}
 
       <footer style={{ borderTop: "1px solid var(--border)", marginTop: 64, padding: "24px 0", color: "var(--muted)", fontSize: 12, fontFamily: "IBM Plex Mono" }}>
-        Built by Aryan Natekar — Autonova AI LLP — Not affiliated with Amazon.
+        Built by Aryan Nate — A project for Pixii — Not affiliated with Amazon.
       </footer>
     </div>
   )
