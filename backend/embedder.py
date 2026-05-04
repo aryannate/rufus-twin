@@ -39,3 +39,11 @@ async def chunk_and_embed(product: ProductData) -> List[dict]:
         input=chunks,
     )
     return [{"text": c, "vector": item.embedding} for c, item in zip(chunks, response.data)]
+
+
+async def embed_query(text: str) -> List[float]:
+    response = await _client.embeddings.create(
+        model="text-embedding-3-small",
+        input=[text],
+    )
+    return response.data[0].embedding

@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from models import AnalyzeRequest, AnalyzeResponse, ProductData
 from scraper import scrape_product
-from embedder import chunk_and_embed
+from embedder import chunk_and_embed, embed_query
 from vector_store import VectorStore
 from claude_client import simulate_rufus, score_listing, generate_fixes
 
@@ -87,13 +87,16 @@ async def analyze(req: AnalyzeRequest, request: Request):
     if not products:
         raise HTTPException(status_code=422, detail="No products could be processed.")
 
-    embedded_all = await asyncio.gather(*[chunk_and_embed(p) for p in products])
+    embedded_all, query_vector = await asyncio.gather(
+        asyncio.gather(*[chunk_and_embed(p) for p in products]),
+        embed_query(req.shopper_query),
+    )
 
     store = VectorStore()
     for i, chunks in enumerate(embedded_all):
         store.add(i, chunks)
 
-    all_contexts = [store.query(i, req.shopper_query) for i in range(len(products))]
+    all_contexts = [store.query(i, query_vector) for i in range(len(products))]
     main_context = all_contexts[0]
 
     simulation_result, score_result, fixes_result = await asyncio.gather(

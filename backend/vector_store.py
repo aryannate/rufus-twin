@@ -1,30 +1,30 @@
-import chromadb
-from chromadb.config import Settings
+import math
 from typing import List
+
+
+def _cosine_sim(a: List[float], b: List[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+    return dot / (mag_a * mag_b + 1e-9)
 
 
 class VectorStore:
     def __init__(self):
-        self._client = chromadb.Client(Settings(is_persistent=False, anonymized_telemetry=False))
-        self._cols = {}
+        self._data: dict = {}
 
     def add(self, product_id: int, chunks: List[dict]):
         if not chunks:
             return
-        col = self._client.create_collection(f"p_{id(self)}_{product_id}")
-        self._cols[product_id] = col
-        col.add(
-            ids=[f"{product_id}_{i}" for i in range(len(chunks))],
-            embeddings=[c["vector"] for c in chunks],
-            documents=[c["text"] for c in chunks],
-        )
+        self._data[product_id] = chunks
 
-    def query(self, product_id: int, query_text: str, n_results=8) -> List[str]:
-        col = self._cols.get(product_id)
-        if not col:
+    def query(self, product_id: int, query_vector: List[float], n_results: int = 8) -> List[str]:
+        chunks = self._data.get(product_id)
+        if not chunks:
             return []
-        try:
-            res = col.query(query_texts=[query_text], n_results=min(n_results, col.count()))
-            return res["documents"][0] if res["documents"] else []
-        except Exception:
-            return []
+        scored = [
+            (_cosine_sim(query_vector, c["vector"]), c["text"])
+            for c in chunks
+        ]
+        scored.sort(reverse=True)
+        return [text for _, text in scored[:n_results]]
